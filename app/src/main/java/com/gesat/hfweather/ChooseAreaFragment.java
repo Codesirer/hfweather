@@ -1,8 +1,8 @@
 package com.gesat.hfweather;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,12 +19,15 @@ import com.gesat.hfweather.db.Province;
 import com.gesat.hfweather.utils.HttpUtil;
 import com.gesat.hfweather.utils.Utility;
 
+import org.jetbrains.annotations.NotNull;
 import org.litepal.crud.DataSupport;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+import androidx.fragment.app.Fragment;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
@@ -89,7 +92,7 @@ public class ChooseAreaFragment extends Fragment {
         titleText = (TextView) view.findViewById(R.id.title_text);
         backButton = (Button) view.findViewById(R.id.back_button);
         listView = (ListView) view.findViewById(R.id.list_view);
-        adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, dataList);
+        adapter = new ArrayAdapter<>(Objects.requireNonNull(getContext()), android.R.layout.simple_list_item_1, dataList);
         listView.setAdapter(adapter);
         return view;
     }
@@ -106,6 +109,19 @@ public class ChooseAreaFragment extends Fragment {
                 } else if (currentLevel == LEVEL_CITY) {
                     selectedCity = cityList.get(position);
                     queryCounties();
+                } else if (currentLevel == LEVEL_COUNTY) {
+                    String weatherId = countyList.get(position).getWeatherId();
+                    if (getActivity() instanceof MainActivity) {
+                        Intent intent = new Intent(getActivity(), WeatherActivity.class);
+                        intent.putExtra("weather_id", weatherId);
+                        startActivity(intent);
+                        getActivity().finish();
+                    } else if (getActivity() instanceof WeatherActivity) {
+                        WeatherActivity activity = (WeatherActivity) getActivity();
+                        activity.drawerLayout.closeDrawers();
+                        activity.swipeRefresh.setRefreshing(true);
+                        activity.requestWeather(weatherId);
+                    }
                 }
             }
         });
@@ -195,9 +211,9 @@ public class ChooseAreaFragment extends Fragment {
         showProgressDialog();
         HttpUtil.sendOkHttpRequest(address, new Callback() {
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                String responseText = response.body().string();
-                    boolean result = false;
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                String responseText = Objects.requireNonNull(response.body()).string();
+                boolean result = false;
                 if ("province".equals(type)) {
                     result = Utility.handleProvinceResponse(responseText);
                 } else if ("city".equals(type)) {
@@ -206,7 +222,7 @@ public class ChooseAreaFragment extends Fragment {
                     result = Utility.handleCountyResponse(responseText, selectedCity.getId());
                 }
                 if (result) {
-                    getActivity().runOnUiThread(new Runnable() {
+                    Objects.requireNonNull(getActivity()).runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             closeProgressDialog();
@@ -214,7 +230,7 @@ public class ChooseAreaFragment extends Fragment {
                                 queryProvinces();
                             } else if ("city".equals(type)) {
                                 queryCities();
-                            } else if ("county".equals(type)) {
+                            } else {
                                 queryCounties();
                             }
                         }
@@ -223,9 +239,9 @@ public class ChooseAreaFragment extends Fragment {
             }
 
             @Override
-            public void onFailure(Call call, IOException e) {
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 // 通过runOnUiThread()方法回到主线程处理逻辑
-                getActivity().runOnUiThread(new Runnable() {
+                Objects.requireNonNull(getActivity()).runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         closeProgressDialog();
